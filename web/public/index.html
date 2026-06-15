@@ -1,0 +1,1138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CS2 Match Stats</title>
+  <style>
+    :root {
+      --hltv-blue: #1a75ff;
+      --hltv-bg: #1a1a1d;
+      --hltv-bg-card: #252529;
+      --hltv-bg-hover: #2d2d32;
+      --hltv-border: #3a3a40;
+      --hltv-text: #ffffff;
+      --hltv-text-secondary: #aaaaaa;
+      --hltv-text-muted: #666666;
+      --ct-color: #4fa5ff;
+      --t-color: #ff4f4f;
+      --green: #4caf50;
+      --red: #f44336;
+      --yellow: #ffc107;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--hltv-bg);
+      color: var(--hltv-text);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    /* Header */
+    .header {
+      background: linear-gradient(180deg, #161619 0%, #1a1a1d 100%);
+      border-bottom: 1px solid var(--hltv-border);
+      padding: 12px 0;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .header-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-icon {
+      width: 36px;
+      height: 36px;
+      background: var(--hltv-blue);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .logo-text h1 {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .logo-text span {
+      font-size: 11px;
+      color: var(--hltv-text-muted);
+      letter-spacing: 1px;
+    }
+
+    .lang-toggle {
+      display: flex;
+      gap: 8px;
+    }
+
+    .lang-btn {
+      padding: 6px 14px;
+      border: 1px solid var(--hltv-border);
+      background: transparent;
+      color: var(--hltv-text-secondary);
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    .lang-btn:hover {
+      border-color: var(--hltv-blue);
+      color: var(--hltv-text);
+    }
+
+    .lang-btn.active {
+      background: var(--hltv-blue);
+      border-color: var(--hltv-blue);
+      color: #fff;
+    }
+
+    /* Container */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    /* Page Header */
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid var(--hltv-border);
+    }
+
+    .page-title {
+      font-size: 22px;
+      font-weight: 600;
+    }
+
+    .refresh-btn {
+      padding: 8px 16px;
+      border: 1px solid var(--hltv-border);
+      background: transparent;
+      color: var(--hltv-text-secondary);
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    .refresh-btn:hover {
+      border-color: var(--hltv-blue);
+      color: var(--hltv-blue);
+    }
+
+    /* Match List */
+    .match-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .match-card {
+      background: var(--hltv-bg-card);
+      border: 1px solid var(--hltv-border);
+      border-radius: 4px;
+      padding: 15px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .match-card:hover {
+      background: var(--hltv-bg-hover);
+      border-color: var(--hltv-blue);
+    }
+
+    .match-info {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .match-meta {
+      color: var(--hltv-text-muted);
+      font-size: 13px;
+    }
+
+    .match-map-name {
+      font-weight: 600;
+      font-size: 15px;
+      color: var(--hltv-text);
+    }
+
+    .match-right {
+      text-align: right;
+    }
+
+    .match-date {
+      color: var(--hltv-text-secondary);
+      font-size: 13px;
+    }
+
+    .match-time {
+      color: var(--hltv-text-muted);
+      font-size: 12px;
+    }
+
+    /* Match Detail */
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--hltv-blue);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 20px;
+      padding: 8px 0;
+      transition: color 0.2s;
+    }
+
+    .back-link:hover {
+      color: var(--ct-color);
+    }
+
+    /* Match Header */
+    .match-header {
+      background: var(--hltv-bg-card);
+      border: 1px solid var(--hltv-border);
+      border-radius: 4px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .match-title {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      margin-bottom: 15px;
+    }
+
+    .match-title h2 {
+      font-size: 24px;
+      font-weight: 600;
+    }
+
+    .match-meta-row {
+      display: flex;
+      gap: 30px;
+      color: var(--hltv-text-secondary);
+      font-size: 13px;
+    }
+
+    /* Scoreboard */
+    .scoreboard {
+      display: grid;
+      grid-template-columns: 1fr 80px 1fr;
+      gap: 0;
+      margin-bottom: 20px;
+    }
+
+    .team-panel {
+      background: var(--hltv-bg-card);
+      border: 1px solid var(--hltv-border);
+    }
+
+    .team-panel.ct {
+      border-right: none;
+      border-radius: 4px 0 0 4px;
+    }
+
+    .team-panel.t {
+      border-left: none;
+      border-radius: 0 4px 4px 0;
+    }
+
+    .team-header {
+      padding: 12px 15px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid var(--hltv-border);
+    }
+
+    .team-panel.ct .team-header {
+      background: rgba(79, 165, 255, 0.15);
+    }
+
+    .team-panel.t .team-header {
+      background: rgba(255, 79, 79, 0.15);
+    }
+
+    .team-badge {
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .team-badge.ct {
+      background: var(--ct-color);
+    }
+
+    .team-badge.t {
+      background: var(--t-color);
+    }
+
+    .team-name {
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .team-panel.ct .team-name {
+      color: var(--ct-color);
+    }
+
+    .team-panel.t .team-name {
+      color: var(--t-color);
+    }
+
+    .vs-panel {
+      background: var(--hltv-bg-card);
+      border-top: 1px solid var(--hltv-border);
+      border-bottom: 1px solid var(--hltv-border);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .vs-text {
+      font-size: 11px;
+      color: var(--hltv-text-muted);
+      font-weight: 500;
+    }
+
+    .final-score {
+      font-size: 32px;
+      font-weight: 700;
+      margin-top: 5px;
+    }
+
+    /* Player Table */
+    .player-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .player-table th,
+    .player-table td {
+      padding: 10px 15px;
+      text-align: left;
+      border-bottom: 1px solid var(--hltv-border);
+    }
+
+    .player-table th {
+      background: var(--hltv-bg-card);
+      font-weight: 600;
+      font-size: 12px;
+      color: var(--hltv-text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .player-table tr:hover {
+      background: var(--hltv-bg-hover);
+    }
+
+    .player-name-cell {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .player-avatar {
+      width: 28px;
+      height: 28px;
+      background: var(--hltv-bg-hover);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+    }
+
+    .player-name {
+      font-weight: 500;
+    }
+
+    .player-tag {
+      font-size: 9px;
+      padding: 2px 6px;
+      background: rgba(79, 165, 255, 0.2);
+      border: 1px solid var(--ct-color);
+      border-radius: 3px;
+      color: var(--ct-color);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .event-weapon {
+      font-size: 11px;
+      padding: 3px 8px;
+      background: rgba(255, 193, 7, 0.15);
+      border: 1px solid var(--yellow);
+      border-radius: 3px;
+      color: var(--yellow);
+      font-weight: 600;
+    }
+
+    .stat-kills {
+      color: var(--green);
+      font-weight: 600;
+    }
+
+    .stat-deaths {
+      color: var(--red);
+      font-weight: 600;
+    }
+
+    .stat-assists {
+      color: var(--hltv-text-secondary);
+    }
+
+    .stat-adg {
+      color: var(--hltv-text-secondary);
+    }
+
+    .stat-mvp {
+      color: var(--yellow);
+      font-weight: 600;
+    }
+
+    /* Rounds Section */
+    .rounds-section {
+      background: var(--hltv-bg-card);
+      border: 1px solid var(--hltv-border);
+      border-radius: 4px;
+      padding: 15px;
+      margin-top: 20px;
+    }
+
+    .section-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 15px;
+      color: var(--hltv-text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .rounds-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .round-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 3px;
+      border: 1px solid var(--hltv-border);
+      background: var(--hltv-bg);
+      color: var(--hltv-text-secondary);
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 13px;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+
+    .round-btn.ct {
+      border-color: var(--ct-color);
+      color: var(--ct-color);
+    }
+
+    .round-btn.t {
+      border-color: var(--t-color);
+      color: var(--t-color);
+    }
+
+    .round-btn:hover {
+      transform: scale(1.05);
+    }
+
+    .round-btn.selected {
+      outline: 2px solid var(--hltv-blue);
+      outline-offset: 1px;
+    }
+
+    .round-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      font-size: 0;
+    }
+
+    .round-btn.ct .round-indicator {
+      background: var(--ct-color);
+    }
+
+    .round-btn.t .round-indicator {
+      background: var(--t-color);
+    }
+
+    /* Round Detail */
+    .round-detail {
+      background: var(--hltv-bg);
+      border-radius: 4px;
+      padding: 15px;
+      margin-top: 15px;
+    }
+
+    .round-detail-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--hltv-border);
+    }
+
+    .round-detail-title {
+      font-weight: 600;
+    }
+
+    .round-result {
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 3px;
+    }
+
+    .round-result.ct {
+      background: rgba(79, 165, 255, 0.2);
+      color: var(--ct-color);
+    }
+
+    .round-result.t {
+      background: rgba(255, 79, 79, 0.2);
+      color: var(--t-color);
+    }
+
+    .event-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .event-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      background: var(--hltv-bg-card);
+      border-radius: 3px;
+      font-size: 13px;
+    }
+
+    .event-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      background: rgba(244, 67, 54, 0.2);
+    }
+
+    .event-content {
+      flex: 1;
+    }
+
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      background: var(--hltv-bg-card);
+      border: 1px solid var(--hltv-border);
+      border-radius: 4px;
+    }
+
+    .empty-state h2 {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+
+    .empty-state p {
+      color: var(--hltv-text-muted);
+      font-size: 14px;
+    }
+
+    /* Loading */
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: var(--hltv-text-muted);
+    }
+
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 2px solid var(--hltv-border);
+      border-top-color: var(--hltv-blue);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 15px;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .container {
+        padding: 15px;
+      }
+
+      .match-card {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+      }
+
+      .scoreboard {
+        grid-template-columns: 1fr;
+      }
+
+      .team-panel.ct {
+        border-right: 1px solid var(--hltv-border);
+        border-radius: 4px 4px 0 0;
+      }
+
+      .team-panel.t {
+        border-left: 1px solid var(--hltv-border);
+        border-top: none;
+        border-radius: 0 0 4px 4px;
+      }
+
+      .vs-panel {
+        border-left: 1px solid var(--hltv-border);
+        border-right: 1px solid var(--hltv-border);
+        padding: 10px 0;
+      }
+
+      .player-table th:nth-child(5),
+      .player-table td:nth-child(5) {
+        display: none;
+      }
+
+      .player-table th:nth-child(4),
+      .player-table td:nth-child(4) {
+        display: none;
+      }
+
+      .match-right {
+        text-align: left;
+        margin-top: 8px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="header-content">
+      <div class="logo">
+        <div class="logo-icon">CS</div>
+        <div class="logo-text">
+          <h1>CS2 Match Stats</h1>
+          <span>MATCH RECORDER</span>
+        </div>
+      </div>
+      <div class="lang-toggle">
+        <button class="lang-btn active" data-lang="en" onclick="setLang('en')">EN</button>
+        <button class="lang-btn" data-lang="zh" onclick="setLang('zh')">中文</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="container" id="app">
+    <div class="loading">
+      <div class="loading-spinner"></div>
+      <p>Loading...</p>
+    </div>
+  </div>
+
+  <script>
+    const t = {
+      en: {
+        loading: 'Loading...',
+        matches: 'Match History',
+        refresh: 'Refresh',
+        back: 'Back',
+        noMatches: 'No matches found',
+        noMatchesDesc: 'Play a match with the CS2 Match Stats plugin enabled.',
+        map: 'Map',
+        date: 'Date',
+        duration: 'Duration',
+        rounds: 'Rounds',
+        ct: 'CT',
+        t: 'T',
+        players: 'Players',
+        kills: 'K',
+        deaths: 'D',
+        assists: 'A',
+        adg: 'Score',
+        mvp: 'MVP',
+        bot: 'BOT',
+        round: 'Round',
+        winner: 'Winner',
+        reason: 'Reason',
+        events: 'Events',
+        death: 'Death',
+        planted: 'Bomb Planted',
+        defused: 'Bomb Defused',
+        ctWin: 'CT Win',
+        tWin: 'T Win',
+        bombExploded: 'Bomb Exploded',
+        bombDefused: 'Bomb Defused',
+        timeOut: 'Time Out',
+        teamEliminated: 'Team Eliminated',
+        error: 'Error',
+        errorDesc: 'Please check if the API server is running.'
+      },
+      zh: {
+        loading: '加载中...',
+        matches: '对局记录',
+        refresh: '刷新',
+        back: '返回',
+        noMatches: '暂无对局记录',
+        noMatchesDesc: '请使用 CS2 Match Stats 插件进行游戏。',
+        map: '地图',
+        date: '日期',
+        duration: '时长',
+        rounds: '回合',
+        ct: 'CT',
+        t: 'T',
+        players: '玩家',
+        kills: '击杀',
+        deaths: '死亡',
+        assists: '助攻',
+        adg: '分数',
+        mvp: 'MVP',
+        bot: 'BOT',
+        round: '回合',
+        winner: '获胜方',
+        reason: '原因',
+        events: '事件',
+        death: '击杀',
+        planted: '安放炸弹',
+        defused: '拆除炸弹',
+        ctWin: 'CT获胜',
+        tWin: 'T获胜',
+        bombExploded: '炸弹爆炸',
+        bombDefused: '炸弹拆除',
+        timeOut: '时间耗尽',
+        teamEliminated: '队伍淘汰',
+        error: '错误',
+        errorDesc: '请检查API服务器是否运行。'
+      }
+    };
+
+    let lang = 'en';
+    let currentMatch = null;
+
+    function setLang(newLang) {
+      lang = newLang;
+      localStorage.setItem('cs2-stats-lang', newLang);
+      document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.dataset.lang === newLang));
+      if (currentMatch) renderMatch(currentMatch);
+      else loadMatches();
+    }
+
+    function _(key) {
+      return t[lang][key] || key;
+    }
+
+    async function loadMatches() {
+      const app = document.getElementById('app');
+      try {
+        const res = await fetch('/api/matches');
+        const matches = await res.json();
+
+        if (matches.length === 0) {
+          app.innerHTML = `
+            <div class="empty-state">
+              <h2>${_('noMatches')}</h2>
+              <p>${_('noMatchesDesc')}</p>
+            </div>
+          `;
+          return;
+        }
+
+        const html = `
+          <div class="page-header">
+            <h1 class="page-title">${_('matches')}</h1>
+            <button class="refresh-btn" onclick="loadMatches()">${_('refresh')}</button>
+          </div>
+          <div class="match-list">
+            ${matches.map(m => `
+              <div class="match-card" onclick="loadMatch('${m.filename}')">
+                <div class="match-info">
+                  <span class="match-map-name">${getMapName(m.mapName)}</span>
+                  <span class="match-meta">${_('rounds')}: ${m.roundCount}</span>
+                </div>
+                <div class="match-right">
+                  <span class="match-date">${new Date(m.timestamp).toLocaleDateString(lang === 'zh' ? 'zh-CN' : 'en-US')}</span>
+                  <span class="match-time">${new Date(m.timestamp).toLocaleTimeString(lang === 'zh' ? 'zh-CN' : 'en-US', {hour: '2-digit', minute:'2-digit'})}</span>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+        app.innerHTML = html;
+      } catch (e) {
+        app.innerHTML = `
+          <div class="empty-state">
+            <h2>${_('error')}</h2>
+            <p>${_('errorDesc')}</p>
+          </div>
+        `;
+      }
+    }
+
+    async function loadMatch(filename) {
+      const app = document.getElementById('app');
+      try {
+        const res = await fetch(`/api/match/${filename}`);
+        currentMatch = await res.json();
+        renderMatch(currentMatch);
+      } catch (e) {
+        app.innerHTML = `
+          <div class="empty-state">
+            <h2>${_('error')}</h2>
+            <p>${e.message}</p>
+          </div>
+        `;
+      }
+    }
+
+    function renderMatch(match) {
+      const app = document.getElementById('app');
+      const ctScore = match.Teams?.CT?.Score || 0;
+      const tScore = match.Teams?.T?.Score || 0;
+      const ctPlayers = Object.values(match.Teams?.CT?.Players || {});
+      const tPlayers = Object.values(match.Teams?.T?.Players || {});
+
+      // 如果队伍里没有玩家，尝试从 allPlayers 中获取
+      if (ctPlayers.length === 0 && tPlayers.length === 0) {
+        // 尝试遍历所有回合的玩家统计
+        const allPlayerStats = {};
+        (match.Rounds || []).forEach(round => {
+          if (round.PlayerStats) {
+            Object.entries(round.PlayerStats).forEach(([id, stats]) => {
+              if (!allPlayerStats[id]) {
+                allPlayerStats[id] = { Kills: 0, Deaths: 0, Assists: 0, Score: 0, MVPs: 0 };
+              }
+              allPlayerStats[id].Kills += stats.Kills || 0;
+              allPlayerStats[id].Deaths += stats.Deaths || 0;
+              allPlayerStats[id].Assists += stats.Assists || 0;
+            });
+          }
+        });
+
+        // 从事件中尝试获取玩家名字
+        const playerNames = {};
+        (match.Rounds || []).forEach(round => {
+          (round.Events || []).forEach(e => {
+            if (e.Attacker && !['World', 'Unknown'].includes(e.Attacker)) {
+              playerNames[e.Attacker] = e.Attacker;
+            }
+            if (e.Victim && !['World', 'Unknown'].includes(e.Victim)) {
+              playerNames[e.Victim] = e.Victim;
+            }
+          });
+        });
+
+        // 如果有玩家名字，按字母分成两队
+        const names = Object.keys(playerNames);
+        names.forEach((name, idx) => {
+          const stats = allPlayerStats[Object.keys(allPlayerStats)[idx]] || { Kills: 0, Deaths: 0 };
+          const player = {
+            UniqueId: idx + 1,
+            Name: name,
+            IsBot: false,
+            TeamKey: idx % 2 === 0 ? 'CT' : 'T',
+            Kills: stats.Kills,
+            Deaths: stats.Deaths,
+            Assists: stats.Assists,
+            Score: 0,
+            MVPs: 0
+          };
+          if (player.TeamKey === 'CT') {
+            ctPlayers.push(player);
+          } else {
+            tPlayers.push(player);
+          }
+        });
+      }
+
+      app.innerHTML = `
+        <a class="back-link" href="#" onclick="loadMatches(); return false;">← ${_('back')}</a>
+
+        <div class="match-header">
+          <div class="match-title">
+            <div>
+              <h2>${getMapName(match.MapName)}</h2>
+              <div class="match-meta-row">
+                <span>${_('date')}: ${match.StartTime}</span>
+                <span>${_('duration')}: ${formatDuration(match.Duration)}</span>
+                <span>${_('rounds')}: ${match.Rounds?.length || 0}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="scoreboard">
+          <div class="team-panel ct">
+            <div class="team-header">
+              <div class="team-badge ct">CT</div>
+              <span class="team-name">Counter-Terrorists</span>
+            </div>
+            <table class="player-table">
+              <thead>
+                <tr>
+                  <th>${_('players')}</th>
+                  <th>${_('kills')}</th>
+                  <th>${_('deaths')}</th>
+                  <th>${_('assists')}</th>
+                  <th>${_('adg')}</th>
+                  <th>${_('mvp')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${ctPlayers.length > 0 ? ctPlayers.map(p => `
+                  <tr>
+                    <td>
+                      <div class="player-name-cell">
+                        <div class="player-avatar"></div>
+                        <span class="player-name">${escapeHtml(p.Name)}</span>
+                        ${p.IsBot ? `<span class="player-tag">${_('bot')}</span>` : ''}
+                      </div>
+                    </td>
+                    <td class="stat-kills">${p.Kills || 0}</td>
+                    <td class="stat-deaths">${p.Deaths || 0}</td>
+                    <td class="stat-assists">${p.Assists || 0}</td>
+                    <td class="stat-adg">${p.Score || 0}</td>
+                    <td class="stat-mvp">${p.MVPs || 0}</td>
+                  </tr>
+                `).join('') : `<tr><td colspan="6" style="color:var(--hltv-text-muted);text-align:center;padding:20px;">No player data</td></tr>`}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="vs-panel">
+            <span class="vs-text">VS</span>
+            <span class="final-score">${ctScore}-${tScore}</span>
+          </div>
+
+          <div class="team-panel t">
+            <div class="team-header">
+              <div class="team-badge t">T</div>
+              <span class="team-name">Terrorists</span>
+            </div>
+            <table class="player-table">
+              <thead>
+                <tr>
+                  <th>${_('players')}</th>
+                  <th>${_('kills')}</th>
+                  <th>${_('deaths')}</th>
+                  <th>${_('assists')}</th>
+                  <th>${_('adg')}</th>
+                  <th>${_('mvp')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${tPlayers.length > 0 ? tPlayers.map(p => `
+                  <tr>
+                    <td>
+                      <div class="player-name-cell">
+                        <div class="player-avatar"></div>
+                        <span class="player-name">${escapeHtml(p.Name)}</span>
+                        ${p.IsBot ? `<span class="player-tag">${_('bot')}</span>` : ''}
+                      </div>
+                    </td>
+                    <td class="stat-kills">${p.Kills || 0}</td>
+                    <td class="stat-deaths">${p.Deaths || 0}</td>
+                    <td class="stat-assists">${p.Assists || 0}</td>
+                    <td class="stat-adg">${p.Score || 0}</td>
+                    <td class="stat-mvp">${p.MVPs || 0}</td>
+                  </tr>
+                `).join('') : `<tr><td colspan="6" style="color:var(--hltv-text-muted);text-align:center;padding:20px;">No player data</td></tr>`}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="rounds-section">
+          <div class="section-title">${_('rounds')}</div>
+          <div class="rounds-grid">
+            ${(match.Rounds || []).map(r => `
+              <button class="round-btn ${(r.Winner || 'ct').toLowerCase()}" onclick="showRound(${r.RoundNumber})" id="round-${r.RoundNumber}">
+                ${r.RoundNumber}
+                <span class="round-indicator"></span>
+              </button>
+            `).join('')}
+          </div>
+          <div id="round-detail"></div>
+        </div>
+      `;
+    }
+
+    function showRound(num) {
+      const btn = document.getElementById(`round-${num}`);
+      const detail = document.getElementById('round-detail');
+      const round = currentMatch?.Rounds?.find(r => r.RoundNumber === num);
+
+      if (!round) return;
+
+      document.querySelectorAll('.round-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+
+      const reason = getReason(round.Reason);
+      const winner = round.Winner === 'CT' ? _('ctWin') : _('tWin');
+
+      detail.innerHTML = `
+        <div class="round-detail">
+          <div class="round-detail-header">
+            <span class="round-detail-title">${_('round')} #${num}</span>
+            <span class="round-result ${(round.Winner || 'ct').toLowerCase()}">${winner}</span>
+          </div>
+          <div style="margin-bottom:15px;color:var(--hltv-text-muted);font-size:13px;">
+            ${_('reason')}: ${reason}
+          </div>
+          <div class="section-title" style="margin-bottom:10px;">${_('events')}</div>
+          <div class="event-list">
+            ${round.Events?.length > 0 ? round.Events.map(e => `
+              <div class="event-item">
+                <div class="event-icon">-</div>
+                <div class="event-content">${getEventDesc(e)}</div>
+                ${e.Weapon ? `<span class="event-weapon">${e.Weapon}</span>` : ''}
+              </div>
+            `).join('') : `<p style="color:var(--hltv-text-muted);padding:10px;text-align:center;">No events</p>`}
+          </div>
+        </div>
+      `;
+    }
+
+    function getReason(code) {
+      const reasons = {
+        1: _('tWin'),
+        2: _('ctWin'),
+        4: _('bombExploded'),
+        5: _('bombDefused'),
+        8: _('timeOut'),
+        6: _('teamEliminated') + ' (T)',
+        7: _('teamEliminated') + ' (CT)'
+      };
+      return reasons[code] || 'Unknown';
+    }
+
+    function getEventDesc(e) {
+      if (e.Type === 'death') {
+        const hs = e.Headshot ? ' (HS)' : '';
+        return `${escapeHtml(e.Victim)} killed by ${escapeHtml(e.Attacker)}${hs}`;
+      }
+      if (e.Type === 'bomb_planted') return `${_('planted')}: ${escapeHtml(e.Player)}`;
+      if (e.Type === 'bomb_defused') return `${_('defused')}: ${escapeHtml(e.Player)}`;
+      return JSON.stringify(e);
+    }
+
+    function formatDuration(sec) {
+      if (!sec) return '0:00';
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      return `${m}:${s.toString().padStart(2, '0')}`;
+    }
+
+    // 地图名称翻译
+    const mapNames = {
+      'de_dust2': { en: 'Dust2', zh: '炙热沙城II' },
+      'de_mirage': { en: 'Mirage', zh: '沙漠迷城' },
+      'de_train': { en: 'Train', zh: '列车停放站' },
+      'de_nuke': { en: 'Nuke', zh: '核子危机' },
+      'de_cache': { en: 'Cache', zh: '死城之谜' },
+      'de_cobblestone': { en: 'Cobblestone', zh: '古堡激战' },
+      'de_vertigo': { en: 'Vertigo', zh: '殒命大厦' },
+      'de_canals': { en: 'Canals', zh: '运河水城' },
+      'de_ruby': { en: 'Ruby', zh: '红宝石酒镇' },
+      'de_zoo': { en: 'Zoo', zh: '动物园' },
+      'de_overpass': { en: 'Overpass', zh: '死亡游乐园' },
+      'cs_workout': { en: 'Workout', zh: '健身中心' },
+      'cs_agency': { en: 'Agency', zh: '办公大楼' },
+      'cs_office': { en: 'Office', zh: '办公室' },
+      'cs_italy': { en: 'Italy', zh: '意大利小镇' },
+      'cs_assault': { en: 'Assault', zh: '仓库突击' },
+      'ar_baggage': { en: 'Baggage', zh: '行李仓库' },
+      'ar_shoots': { en: 'Shoots', zh: '山林小寨' },
+      'de_lake': { en: 'Lake', zh: '湖畔激战' },
+      'de_stmarc': { en: 'StMarc', zh: '圣马克镇' }
+    };
+
+    function getMapName(mapId) {
+      if (!mapId) return 'Unknown';
+      const map = mapNames[mapId.toLowerCase()];
+      if (map) {
+        return lang === 'zh' ? map.zh : map.en;
+      }
+      return mapId;
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const saved = localStorage.getItem('cs2-stats-lang') || 'en';
+      setLang(saved);
+      loadMatches();
+    });
+  </script>
+</body>
+</html>

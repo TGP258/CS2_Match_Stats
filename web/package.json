@@ -1,0 +1,13 @@
+{
+  "name": "cs2-match-stats-web",
+  "version": "1.0.0",
+  "description": "CS2 Match Statistics - Web Viewer",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
