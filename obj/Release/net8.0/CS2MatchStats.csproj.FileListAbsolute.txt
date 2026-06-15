@@ -1,0 +1,13 @@
+C:\Users\Ealina\Documents\CS@@\CS2-Bot-Improver\CS2MatchStats\bin\Release\net8.0\CS2MatchStats.deps.json
+C:\Users\Ealina\Documents\CS@@\CS2-Bot-Improver\CS2MatchStats\bin\Release\net8.0\CS2MatchStats.dll
+C:\Users\Ealina\Documents\CS@@\CS2-Bot-Improver\CS2MatchStats\bin\Release\net8.0\CS2MatchStats.pdb
+C:\Users\Ealina\Documents\CS@@\CS2-Bot-Improver\CS2MatchStats\obj\Release\net8.0\CS2MatchStats.csproj.AssemblyReference.cache
+C:\Users\Ealina\Documents\CS@@\CS2-Bot-Improver\CS2MatchStats\obj\Release\net8.0\CS2MatchStats.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Ealina\Documents\CS@@\CS2-Bot-Improver\CS2MatchStats\obj\Release\net8.0\CS2MatchStats.AssemblyInfoInputs.cache
+C:\Users\Ealina\Documents\CS@@\CS2-Bot-Improver\CS2MatchStats\obj\Release\net8.0\CS2MatchStats.AssemblyInfo.cs
+C:\Users\Ealina\Documents\CS@@\CS2-Bot-Improver\CS2MatchStats\obj\Release\net8.0\CS2MatchStats.csproj.CoreCompileInputs.cache
+C:\Users\Ealina\Documents\CS@@\CS2-Bot-Improver\CS2MatchStats\obj\Release\net8.0\CS2MatchStats.sourcelink.json
+C:\Users\Ealina\Documents\CS@@\CS2-Bot-Improver\CS2MatchStats\obj\Release\net8.0\CS2MatchStats.dll
+C:\Users\Ealina\Documents\CS@@\CS2-Bot-Improver\CS2MatchStats\obj\Release\net8.0\refint\CS2MatchStats.dll
+C:\Users\Ealina\Documents\CS@@\CS2-Bot-Improver\CS2MatchStats\obj\Release\net8.0\CS2MatchStats.pdb
+C:\Users\Ealina\Documents\CS@@\CS2-Bot-Improver\CS2MatchStats\obj\Release\net8.0\ref\CS2MatchStats.dll
