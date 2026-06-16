@@ -8,7 +8,7 @@ const PORT = 5173;
 // 默认路径 - 请根据您的实际安装位置修改
 // 例如: C:\\Program Files (x86)\\Steam\\steamapps\\common\\Counter-Strike Global Offensive\\game\\csgo\\match_history
 // 或: ../../game/csgo/match_history (相对于 web 目录)
-const MATCH_DIR = process.env.MATCH_HISTORY_DIR || path.join(__dirname, '../../game/csgo/match_history');
+const MATCH_DIR = process.env.MATCH_HISTORY_DIR || path.join(__dirname, '../game/csgo/match_history');
 
 console.log('========================================');
 console.log('  CS2 Match Stats - Web Viewer');
