@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("CS2MatchStats")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b2f12010c76f0f2577888fb20cf11a82d7b8d91c")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+e66bfb601e8bc09038b09a2278df59026d707271")]
 [assembly: System.Reflection.AssemblyProductAttribute("CS2MatchStats")]
 [assembly: System.Reflection.AssemblyTitleAttribute("CS2MatchStats")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

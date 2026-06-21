@@ -31,6 +31,16 @@ public class CS2MatchStatsPlugin : BasePlugin
     // 交换击杀：记录每回合死亡信息 (受害者ID -> (凶手ID, 死亡时间))
     private readonly ConcurrentDictionary<long, (long KillerId, float DeathTime)> _playerDeathInfo = new();
 
+    // ============================================================
+    // 换边检测锚点：每回合结束时记录所有玩家的 TeamKey 快照
+    // 用于在下一回合开始时比较"玩家的队是否变了"来检测换边
+    // ============================================================
+    // Key=玩家UniqueId, Value=该玩家在上回合结束时的队伍
+    private readonly Dictionary<long, string> _previousRoundTeamSnapshot = new();
+
+    // 本回合是否已记录过首杀 (每次 OnRoundStart 重置为 false, 第一次 kill 时置 true)
+    private bool _roundFirstKillRecorded = false;
+
     // 最小助攻伤害阈值
     private const int MIN_ASSIST_DAMAGE = 10;
     // 交换击杀时间窗口（秒）
@@ -170,7 +180,9 @@ public class CS2MatchStatsPlugin : BasePlugin
         {
             // 更新可能变化的字段
             if (!string.IsNullOrEmpty(name)) existing.Name = name;
+            // TeamKey 跟着当前回合的队伍走, 换边时会变化
             if (!string.IsNullOrEmpty(teamKey)) existing.TeamKey = teamKey;
+            // InitialTeam 保持不变 (玩家首登游戏时的队伍)
             if (!string.IsNullOrEmpty(steamId)) existing.SteamId = steamId;
             existing.Score = score;
             return existing;
@@ -182,12 +194,14 @@ public class CS2MatchStatsPlugin : BasePlugin
             Name = name,
             IsBot = false, // 不再依赖 IsBot 字段, 统一 false (由外部显示决定)
             SteamId = steamId,
+            // 首次注册时: 队伍初始值 = 当前队伍
             TeamKey = teamKey,
+            InitialTeam = teamKey,
             Score = score
         };
         _allPlayers[uniqueId] = newPlayer;
 
-        Server.PrintToConsole($"[CS2MatchStats] REGISTER player: {name} (ID={uniqueId}, Team={teamKey}, Steam={steamId})");
+        Server.PrintToConsole($"[CS2MatchStats] REGISTER player: {name} (ID={uniqueId}, InitialTeam={teamKey}, Steam={steamId})");
         return newPlayer;
     }
 
@@ -212,6 +226,7 @@ public class CS2MatchStatsPlugin : BasePlugin
         _damageDealers.Clear();
         _damageAmounts.Clear();
         _playerDeathInfo.Clear();
+        _previousRoundTeamSnapshot.Clear();
 
         Server.PrintToConsole($"[CS2MatchStats] ========== NEW MATCH STARTED on {mapName} ==========");
     }
@@ -232,16 +247,19 @@ public class CS2MatchStatsPlugin : BasePlugin
         foreach (var kvp in _allPlayers)
         {
             var p = kvp.Value;
-            Server.PrintToConsole($"  [{p.TeamKey}] {p.Name} (ID={kvp.Key}) K={p.Kills} D={p.Deaths} A={p.Assists} MVP={p.MVPs} Survived={p.RoundsSurvived}");
+            Server.PrintToConsole($"  [InitTeam={p.InitialTeam}, CurrentTeam={p.TeamKey}] {p.Name} (ID={kvp.Key}) K={p.Kills} D={p.Deaths} A={p.Assists} MVP={p.MVPs} Survived={p.RoundsSurvived}");
         }
 
-        // 将玩家分配到队伍 (用于输出 JSON)
+        // 将玩家分配到队伍 (使用 InitialTeam 而非 TeamKey)
+        // 原因: 玩家在 12 局后会被换边, TeamKey 会变化
+        // 但前端需要按"他本场在哪一队"来分组, 即按 InitialTeam
         foreach (var player in _allPlayers.Values)
         {
-            if (string.IsNullOrEmpty(player.TeamKey)) continue;
-            if (_currentMatch.Teams.ContainsKey(player.TeamKey))
+            string teamToUse = !string.IsNullOrEmpty(player.InitialTeam) ? player.InitialTeam : player.TeamKey;
+            if (string.IsNullOrEmpty(teamToUse)) continue;
+            if (_currentMatch.Teams.ContainsKey(teamToUse))
             {
-                _currentMatch.Teams[player.TeamKey].Players[player.UniqueId] = player;
+                _currentMatch.Teams[teamToUse].Players[player.UniqueId] = player;
             }
         }
 
@@ -257,27 +275,120 @@ public class CS2MatchStatsPlugin : BasePlugin
     private HookResult OnRoundStart(EventRoundStart @event, GameEventInfo info)
     {
         _currentRound++;
-        _currentMatch.Rounds.Add(new RoundData
-        {
-            RoundNumber = _currentRound,
-            Events = new List<RoundEvent>(),
-            PlayerStats = new Dictionary<long, PlayerRoundStats>()
-        });
+        _roundFirstKillRecorded = false; // 重置首杀标记
 
-        _damageDealers.Clear();
-        _damageAmounts.Clear();
-
-        // 确保所有当前在线玩家已注册
-        int registered = 0;
+        // 收集本回合开始时所有玩家的 TeamKey 快照 (锚点数据)
+        var currentSnapshot = new Dictionary<long, string>();
         foreach (var player in Utilities.GetPlayers())
         {
             if (player == null || !player.IsValid) continue;
             if (player.Team == CsTeam.None || player.Team == CsTeam.Spectator) continue;
-            if (RegisterPlayer(player) != null) registered++;
+            var uid = GetPlayerUniqueId(player);
+            if (uid == 0) continue;
+            currentSnapshot[uid] = GetTeamKey(player);
+            RegisterPlayer(player); // 确保注册并设置 InitialTeam
         }
-        Server.PrintToConsole($"[CS2MatchStats] Round {_currentRound} START - {registered} players registered, total {_allPlayers.Count} tracked");
+
+        // ============================================================
+        // 换边检测: 锚点法 (玩家队伍变化) + 规则验证
+        //
+        // 锚点: 如果上一回合的玩家在本回合的队伍变了 -> 换边
+        // 规则: 已知换边回合 = 13, 28, 34, 40
+        //
+        // 检测逻辑:
+        // 1. 用锚点检测 (Primary): 比较 _previousRoundTeamSnapshot vs currentSnapshot
+        //    若任一玩家 team 变化 -> sideSwapped = true
+        // 2. 用规则验证 (Secondary): 若锚点说换边了但回合号不在已知换边点 -> 警告
+        // 3. 若锚点没检测到但回合号是已知换边点 -> 说明锚点漏了 (用规则补充, 打印警告)
+        // ============================================================
+        bool sideSwappedByAnchor = false;
+        bool sideSwappedByRule = IsSwapRound(_currentRound);
+
+        // 比较上一回合快照 vs 本回合当前状态
+        foreach (var (uid, currentTeam) in currentSnapshot)
+        {
+            if (_previousRoundTeamSnapshot.TryGetValue(uid, out var previousTeam))
+            {
+                // 该玩家在上一回合存在, 比较队伍
+                if (!string.IsNullOrEmpty(previousTeam) && previousTeam != currentTeam)
+                {
+                    sideSwappedByAnchor = true;
+                    break;
+                }
+            }
+        }
+
+        bool sideSwapped = sideSwappedByAnchor || sideSwappedByRule;
+
+        // 规则一致性检查
+        bool sideSwappedConfirmed = sideSwappedByRule;
+        if (sideSwappedByAnchor && !sideSwappedByRule)
+        {
+            // 锚点检测到换边但回合号不在规则换边点 -> 异常
+            Server.PrintToConsole($"[CS2MatchStats] *** WARNING: Side swap detected by anchor but round {_currentRound} is NOT a known swap round! Using anchor. ***");
+            sideSwappedConfirmed = false;
+        }
+        else if (!sideSwappedByAnchor && sideSwappedByRule)
+        {
+            // 规则说应该换边但锚点没检测到 -> 锚点漏了 (用规则补充)
+            Server.PrintToConsole($"[CS2MatchStats] *** WARNING: Rule-based swap at round {_currentRound} but anchor missed it. Using rule. ***");
+            sideSwappedConfirmed = true;
+        }
+        else if (sideSwappedByAnchor && sideSwappedByRule)
+        {
+            sideSwappedConfirmed = true;
+        }
+
+        var newRound = new RoundData
+        {
+            RoundNumber = _currentRound,
+            Events = new List<RoundEvent>(),
+            PlayerStats = new Dictionary<long, PlayerRoundStats>(),
+            PlayerTeamSnapshot = new Dictionary<long, string>(currentSnapshot),
+            SideSwapped = sideSwapped,
+            SideSwappedConfirmed = sideSwappedConfirmed
+        };
+
+        _currentMatch.Rounds.Add(newRound);
+
+        _damageDealers.Clear();
+        _damageAmounts.Clear();
+
+        string swapNote = sideSwapped
+            ? $"SWAP (anchor={sideSwappedByAnchor}, rule={sideSwappedByRule}, confirmed={sideSwappedConfirmed})"
+            : "no-swap";
+        Server.PrintToConsole($"[CS2MatchStats] Round {_currentRound} START - {currentSnapshot.Count} players, swap={swapNote}");
 
         return HookResult.Continue;
+    }
+
+    // 判断某回合号是否是换边回合 (即该回合是"换边后的第一回合")
+    // 换边发生在两个半场之间的短暂过场, 所以"换边回合"= 下一个半场的首回合
+    // 例如: 常规 12 局结束后换边 -> 第 13 局为换边标记回合
+    private static bool IsSwapRound(int roundNumber)
+    {
+        // 已知的换边回合: 13 (常规下半场), 28 (OT1 下半场), 34 (OT2), 40 (OT3)
+        // 46 理论上下一个, 但游戏 45-45 强制平局, 不会到 46
+        int[] swapRounds = { 13, 28, 34, 40 };
+        return swapRounds.Contains(roundNumber);
+    }
+
+    // 辅助: 某回合号属于哪个"半场"的阵营映射
+    // 返回 true 表示当前局玩家的 TeamKey 与其 InitialTeam 相反 (即已经换过边)
+    private static bool IsSwappedHalf(int roundNumber)
+    {
+        if (roundNumber <= 12) return false;
+        if (roundNumber <= 24) return true;
+        // OT: 每个 OT 6 局, 前 3 局不换 (与上一 OT 下半场相反), 后 3 局再换
+        // 实际规则: OT1.25-27 initial-half mapping, OT1.28-30 swapped
+        //           OT2.31-33 swapped-back, OT2.34-36 swapped...
+        // 但 OT 的"initial" 跟常规赛的"初始队"相比: OT1上半场与常规下半场同, 即已经换过边
+        // 所以统一判断: roundNumber 在 13-24(下半场), 28-30(OT1下半场), 34-36(OT2下半场), 40-42(OT3下半场)
+        // 这些局数中的玩家 TeamKey 与其 InitialTeam 相反
+        if (roundNumber >= 28 && roundNumber <= 30) return true;
+        if (roundNumber >= 34 && roundNumber <= 36) return true;
+        if (roundNumber >= 40 && roundNumber <= 42) return true;
+        return false;
     }
 
     private HookResult OnRoundEnd(EventRoundEnd @event, GameEventInfo info)
@@ -289,6 +400,10 @@ public class CS2MatchStatsPlugin : BasePlugin
         round.Winner = winner;
         round.Reason = @event.Reason;
 
+        // ============================================================
+        // 比分计算: 使用游戏 Winner 记录到 round.Winner
+        // 前端会根据 SideSwapped 和 InitialTeam 重新归类比分
+        // ============================================================
         if (_currentMatch.Teams.ContainsKey(winner))
         {
             _currentMatch.Teams[winner].Score++;
@@ -300,14 +415,69 @@ public class CS2MatchStatsPlugin : BasePlugin
         // 计算 MVP
         CalculateRoundMVP(round);
 
+        // ============================================================
+        // 残局 (Clutch) 判定: 胜利队存活玩家 <= 2 时, 该队最高击杀者 获得 1 次 clutch
+        // ============================================================
+        int ctTotal = 0, tTotal = 0, ctAlive = 0, tAlive = 0;
+        // 使用本回合开始时的队伍快照 (round.PlayerTeamSnapshot)
+        var roundTeam = round.PlayerTeamSnapshot;
+        foreach (var kvp in roundTeam)
+        {
+            if (kvp.Value == "CT") ctTotal++;
+            else if (kvp.Value == "T") tTotal++;
+        }
+        foreach (var (uid, stats) in round.PlayerStats)
+        {
+            if (roundTeam.TryGetValue(uid, out var team))
+            {
+                bool isAlive = stats.Deaths == 0;
+                if (team == "CT") { if (isAlive) ctAlive++; }
+                else if (team == "T") { if (isAlive) tAlive++; }
+            }
+        }
+        int winnerAlive = winner == "CT" ? ctAlive : tAlive;
+        if (winnerAlive > 0 && winnerAlive <= 2 && ctTotal + tTotal >= 5)
+        {
+            long clutchPlayerId = 0;
+            int maxKills = -1;
+            foreach (var (uid, stats) in round.PlayerStats)
+            {
+                if (!roundTeam.TryGetValue(uid, out var team)) continue;
+                if (team != winner) continue;
+                if (stats.Kills > maxKills)
+                {
+                    maxKills = stats.Kills;
+                    clutchPlayerId = uid;
+                }
+            }
+            if (clutchPlayerId != 0 && _allPlayers.TryGetValue(clutchPlayerId, out var clutchPlayer))
+            {
+                clutchPlayer.Clutches++;
+                Server.PrintToConsole($"[CS2MatchStats] CLUTCH! Round {_currentRound} winner={winner} had {winnerAlive} alive, {clutchPlayer.Name} gets clutch (total={clutchPlayer.Clutches})");
+            }
+        }
+
         // 同步分数 (从游戏)
         SyncPlayerScores();
 
         // 清空死亡信息
         _playerDeathInfo.Clear();
 
-        // 打印回合总结
-        Server.PrintToConsole($"[CS2MatchStats] Round {_currentRound} END - Winner={winner}, Reason={@event.Reason}, TrackedPlayers={_allPlayers.Count}");
+        // ============================================================
+        // 更新换边检测锚点: 记录本回合结束时所有玩家的 TeamKey
+        // 这样下一回合 OnRoundStart 时可以比较"玩家的队是否变了"
+        // ============================================================
+        _previousRoundTeamSnapshot.Clear();
+        foreach (var player in Utilities.GetPlayers())
+        {
+            if (player == null || !player.IsValid) continue;
+            if (player.Team == CsTeam.None || player.Team == CsTeam.Spectator) continue;
+            var uid = GetPlayerUniqueId(player);
+            if (uid == 0) continue;
+            _previousRoundTeamSnapshot[uid] = GetTeamKey(player);
+        }
+
+        Server.PrintToConsole($"[CS2MatchStats] Round {_currentRound} END - Winner={winner}, Reason={@event.Reason}, TrackedPlayers={_allPlayers.Count}, SwapConfirmed={round.SideSwappedConfirmed}");
 
         return HookResult.Continue;
     }
@@ -477,6 +647,13 @@ public class CS2MatchStatsPlugin : BasePlugin
             {
                 attackerData.Kills++;
                 long attackerId = GetPlayerUniqueId(attacker);
+
+                // 首杀: 如果本回合尚未记录过首杀, 则本次 kill 为首杀
+                if (!_roundFirstKillRecorded)
+                {
+                    _roundFirstKillRecorded = true;
+                    attackerData.FirstKills++;
+                }
 
                 // 回合统计
                 if (!round.PlayerStats.TryGetValue(attackerId, out var attackerStats))
@@ -807,7 +984,8 @@ public class PlayerData
     public string Name { get; set; } = "";
     public bool IsBot { get; set; }          // 不再用来做逻辑判断, 仅作为元数据字段保留
     public string SteamId { get; set; } = ""; // 人类玩家的 SteamID, bot 通常为空
-    public string TeamKey { get; set; } = "";
+    public string TeamKey { get; set; } = "";     // 当前局所属队 (换边后会变)
+    public string InitialTeam { get; set; } = "";  // 玩家首登游戏时的队伍, 用于前端展示和半场合并, 换边不变
     public int Kills { get; set; }
     public int Deaths { get; set; }
     public int Assists { get; set; }
@@ -820,6 +998,8 @@ public class PlayerData
     public int Headshots { get; set; }
     public int TotalDamageDealt { get; set; }
     public int TotalDamageTaken { get; set; }
+    public int FirstKills { get; set; }   // 首杀次数 (完美世界的"首杀"列)
+    public int Clutches { get; set; }    // 残局次数 (最后存活 1-2 人时所在队赢下回合)
 }
 
 public class RoundData
@@ -827,8 +1007,13 @@ public class RoundData
     public int RoundNumber { get; set; }
     public string Winner { get; set; } = "";
     public int Reason { get; set; }
+    public bool SideSwapped { get; set; } // 该回合是否发生换边 (由玩家队伍变化锚点检测)
+    public bool SideSwappedConfirmed { get; set; } // 换边是否通过规则验证 (规则: 13/28/34/40)
     public List<RoundEvent> Events { get; set; } = new();
     public Dictionary<long, PlayerRoundStats> PlayerStats { get; set; } = new();
+    // 回合开始时每个玩家的 TeamKey 快照 (UniqueId -> TeamKey)
+    // 用于锚点检测换边: 玩家队伍在上一回合 vs 本回合发生变化 = 换边
+    public Dictionary<long, string> PlayerTeamSnapshot { get; set; } = new();
 }
 
 public class RoundEvent
