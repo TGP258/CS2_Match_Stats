@@ -565,10 +565,11 @@ const MAP_NAMES = {
 
 function getMapName(key) {
   if (!key) return 'Unknown';
+  if (state.lang === 'en') return key;
   return MAP_NAMES[key.toLowerCase()] || key;
 }
 
-const WEAPON_NAMES = {
+const WEAPON_NAMES_ZH = {
   'glock': 'Glock-18',
   'hkp2000': 'P2000',
   'usp_silencer': 'USP-S',
@@ -623,9 +624,44 @@ const WEAPON_NAMES = {
   'kusama': 'Kusama'
 };
 
+const WEAPON_NAMES_EN = {
+  'elite': 'Dual Berettas',
+  'deagle': 'Desert Eagle',
+  'revolver': 'R8 Revolver',
+  'taser': 'Taser',
+  'bizon': 'PP-Bizon',
+  'm4a1_silencer': 'M4A1-S',
+  'ssg08': 'SSG 08',
+  'g3sg1': 'G3/SG-1',
+  'scar20': 'SCAR-20',
+  'sawedoff': 'Sawed-Off',
+  'negev': 'Negev',
+  'hegrenade': 'HE Grenade',
+  'flashbang': 'Flashbang',
+  'smokegrenade': 'Smoke Grenade',
+  'molotov': 'Molotov',
+  'incgrenade': 'Incendiary Grenade',
+  'decoy': 'Decoy Grenade',
+  'c4': 'C4',
+  'knife': 'Knife',
+  'knife_t': 'Knife',
+  'bayonet': 'Bayonet',
+  '蝴蝶刀': 'Butterfly Knife',
+  'm9': 'M9 Bayonet',
+  'karambit': 'Karambit',
+  'flip': 'Flip Knife',
+  'gut': 'Gut Knife',
+  'gut刀': 'Gut Knife',
+  'kusama': 'Kusama'
+};
+
 function getWeaponName(key) {
   if (!key) return '';
-  return WEAPON_NAMES[key.toLowerCase()] || key;
+  const lowerKey = key.toLowerCase();
+  if (state.lang === 'en') {
+    return WEAPON_NAMES_EN[lowerKey] || key;
+  }
+  return WEAPON_NAMES_ZH[lowerKey] || key;
 }
 
 const i18n = {

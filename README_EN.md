@@ -3,7 +3,9 @@
 <!-- badges -->
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![.NET](https://img.shields.io/badge/.NET-8.0-blue.svg)](https://dotnet.microsoft.com/)
-[![CounterStrikeSharp](https://img.shields.io/badge/CounterStrikeSharp-v1.0.368-green.svg)]()
+[![CounterStrikeSharp](https://img.shields.io/badge/CounterStrikeSharp-v1.0.368-green.svg)](https://github.com/roflmuffin/CounterStrikeSharp)
+
+[中文版本 (README.md)](README.md)
 
 <!-- toc -->
 ## Table of Contents
@@ -17,6 +19,7 @@
 - [Data Format](#data-format)
 - [Tech Stack](#tech-stack)
 - [FAQ](#faq)
+- [Known Issues (To Be Fixed)](#known-issues-to-be-fixed)
 - [Project Structure](#project-structure)
 - [Credits](#credits)
 - [License](#license)
@@ -36,13 +39,17 @@ CS2 Match Stats is a Counter-Strike 2 match statistics recording and web viewing
 | Feature | Description |
 |---------|-------------|
 | Auto Recording | Listens to game events and automatically records match data |
-| Player Stats | K/D/A (Kills/Deaths/Assists), MVP, Score |
+| Player Stats | K/D/A (Kills/Deaths/Assists), MVP, Score, Rating |
 | Bot Support | Records both human players and BOT data |
 | Multi-Map | Supports multiple maps with names in Chinese/English |
 | Event Records | Bomb plant/defuse, headshots, weapons |
-| Round Details | Specific events and results for each round |
+| Round Details | Click round dots to view kill details in popup |
+| Weapon Names | Chinese/English weapon name mapping (pistols, SMGs, rifles, snipers, etc.) |
+| Team Colors | TEAM A (blue) and TEAM B (red) color correspondence |
+| Side Swap | Auto-detects side swap and calculates scores correctly |
 | Web Viewer | View match history through browser |
 | Responsive | Works on desktop and mobile devices |
+| Bilingual | Chinese/English interface toggle |
 
 ---
 
@@ -184,11 +191,20 @@ Each match is saved as a JSON file containing:
   "Name": "PlayerName",
   "IsBot": false,
   "TeamKey": "CT",
+  "InitialTeam": "CT",
   "Kills": 15,
   "Deaths": 5,
   "Assists": 3,
   "Score": 30,
-  "MVPs": 2
+  "MVPs": 2,
+  "Rating": 1.25,
+  "Headshots": 8,
+  "FirstKills": 3,
+  "MultiKills": 2,
+  "Clutches": 1,
+  "Trades": 4,
+  "RoundsSurvived": 10,
+  "TotalDamageDealt": 1850
 }
 ```
 
@@ -222,6 +238,15 @@ Each match is saved as a JSON file containing:
 ### Q: Player statistics are empty?
 
 **A:** If the match only has bots and no kills occurred, there may not be enough data. Please play a normal match and check again.
+
+---
+
+## Known Issues (To Be Fixed)
+
+| Issue | Description |
+|-------|-------------|
+| Bot Control Data Attribution | If a player uses a Bot control plugin to control a bot, that bot's kill/death data will be attributed to the controlling player |
+| Team Kill Counting | Killing teammates is currently counted as kills, needs to filter same-team kill events |
 
 ---
 
