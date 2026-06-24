@@ -1,8 +1,11 @@
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Core.Attributes;
+using CounterStrikeSharp.API.Modules.Commands;
+using CounterStrikeSharp.API.Modules.Cvars;
 using CounterStrikeSharp.API.Modules.Utils;
 using System.Collections.Concurrent;
+using System.Security.Cryptography;
 using System.Text.Json;
 #pragma warning disable CS8604 // Suppress nullable reference warnings from event nullability (we handle null checks inside methods)
 
@@ -43,6 +46,10 @@ public class CS2MatchStatsPlugin : BasePlugin
     private const int MIN_ASSIST_DAMAGE = 10;
     // 交换击杀时间窗口（秒）
     private const float TRADE_TIME_WINDOW = 4.0f;
+
+    // BOT难度记录
+    private int _botDifficulty = 0;
+    private string _difficultyLevel = "Unknown";
 
     public CS2MatchStatsPlugin()
     {
@@ -203,6 +210,9 @@ public class CS2MatchStatsPlugin : BasePlugin
     // Map 事件: 初始化/保存
     private void OnMapStart(string mapName)
     {
+        // 读取BOT难度
+        ReadBotDifficulty();
+
         _currentMatch = new MatchData
         {
             MapName = mapName,
@@ -214,6 +224,8 @@ public class CS2MatchStatsPlugin : BasePlugin
             },
             Rounds = new List<RoundData>()
         };
+        _currentMatch.BotDifficulty = _botDifficulty;
+        _currentMatch.DifficultyLevel = _difficultyLevel;
         _currentRound = 0;
         _allPlayers.Clear();
         _damageDealers.Clear();
@@ -222,6 +234,125 @@ public class CS2MatchStatsPlugin : BasePlugin
         _previousRoundTeamSnapshot.Clear();
 
         Server.PrintToConsole($"[CS2MatchStats] ========== NEW MATCH STARTED on {mapName} ==========");
+        Server.PrintToConsole($"[CS2MatchStats] Bot Difficulty: {_botDifficulty} ({_difficultyLevel})");
+    }
+
+    private void ReadBotDifficulty()
+    {
+        // 方式1: 通过 botprofile.vpk 的 SHA256 哈希检测 CS2-Bot-Improver 的难度
+        var (diffName, diffLevel) = DetectBotDifficultyByVpk();
+        if (diffName != "Unknown" && diffName != "Custom / Unknown")
+        {
+            // BOT基础难度: Low=1, Medium=3, High=5
+            int botBaseDiff = diffLevel switch
+            {
+                "1/3" => 10,
+                "2/3" => 30,
+                "3/3" => 50,
+                _ => 10
+            };
+
+            _botDifficulty = botBaseDiff;
+            _difficultyLevel = diffName;
+        }
+        else
+        {
+            // 方式2: 回退到原生 bot_difficulty CVar
+            try
+            {
+                var botDiffConVar = ConVar.Find("bot_difficulty");
+                if (botDiffConVar != null)
+                {
+                    var val = botDiffConVar.GetPrimitiveValue<object>();
+                    if (val != null) _botDifficulty = Convert.ToInt32(val);
+                }
+            }
+            catch { _botDifficulty = 0; }
+
+            // 原生难度映射
+            _botDifficulty = _botDifficulty switch
+            {
+                0 => 10,   // Easy
+                1 => 15,   // Normal
+                2 => 30,   // Hard
+                3 => 50,   // Expert
+                _ => 10
+            };
+
+            _difficultyLevel = "Standard";
+        }
+    }
+
+    private (string Name, string Level) DetectBotDifficultyByVpk()
+    {
+        var overridesDir = FindOverridesDirectory();
+        if (overridesDir == null)
+        {
+            return ("Unknown - overrides directory missing", "?/3");
+        }
+
+        var activePath = Path.Combine(overridesDir, "botprofile.vpk");
+        if (!File.Exists(activePath))
+        {
+            return ("Unknown - active botprofile.vpk missing", "?/3");
+        }
+
+        byte[] activeHash = ComputeSha256(activePath);
+        var knownProfiles = new[]
+        {
+            new { Name = "Low", Level = "1/3", Path = Path.Combine(overridesDir, "Low", "botprofile.vpk") },
+            new { Name = "Medium", Level = "2/3", Path = Path.Combine(overridesDir, "Medium", "botprofile.vpk") },
+            new { Name = "High", Level = "3/3", Path = Path.Combine(overridesDir, "High", "botprofile.vpk") }
+        };
+
+        foreach (var profile in knownProfiles)
+        {
+            if (!File.Exists(profile.Path)) continue;
+            if (CryptographicOperations.FixedTimeEquals(activeHash, ComputeSha256(profile.Path)))
+            {
+                return (profile.Name, profile.Level);
+            }
+        }
+
+        return ("Custom / Unknown", "?/3");
+    }
+
+    private static string? FindOverridesDirectory()
+    {
+        var candidates = new[]
+        {
+            Path.Combine(Server.GameDirectory, "overrides"),
+            Path.Combine(Server.GameDirectory, "csgo", "overrides"),
+            Path.Combine(Server.GameDirectory, "game", "csgo", "overrides")
+        };
+
+        foreach (var candidate in candidates)
+        {
+            if (File.Exists(Path.Combine(candidate, "botprofile.vpk")))
+            {
+                return candidate;
+            }
+        }
+
+        var current = new DirectoryInfo(AppContext.BaseDirectory);
+        while (current != null)
+        {
+            var candidate = Path.Combine(current.FullName, "overrides");
+            if (File.Exists(Path.Combine(candidate, "botprofile.vpk")))
+            {
+                return candidate;
+            }
+            current = current.Parent;
+        }
+
+        return null;
+    }
+
+    private static byte[] ComputeSha256(string filePath)
+    {
+        using var sha256 = SHA256.Create();
+        using var stream = File.OpenRead(filePath);
+        return sha256.ComputeHash(stream);
     }
 
     private void OnMapEnd()
@@ -840,7 +971,6 @@ public class CS2MatchStatsPlugin : BasePlugin
         return HookResult.Continue;
     }
 
-    // Rating 计算，Rating2.0
     private void CalculateRatings()
     {
         int totalRounds = _currentMatch.Rounds.Count;
@@ -851,25 +981,56 @@ public class CS2MatchStatsPlugin : BasePlugin
 
         double avgKPR = players.Average(p => (double)p.Kills / totalRounds);
         double avgDPR = players.Average(p => (double)p.Deaths / totalRounds);
+        double avgSurvivalRate = players.Average(p => (double)p.RoundsSurvived / totalRounds);
+        double avgImpact = players.Average(p => ((double)p.Kills + p.Assists) / totalRounds);
+        double avgADR = players.Average(p => (double)p.TotalDamageDealt / totalRounds);
 
         if (avgKPR <= 0) avgKPR = 0.5;
-        if (avgDPR <= 0) avgDPR = 0.3;
+        if (avgDPR <= 0) avgDPR = 0.6;
+        if (avgSurvivalRate <= 0) avgSurvivalRate = 0.4;
+        if (avgImpact <= 0) avgImpact = 0.8;
+        if (avgADR <= 0) avgADR = 50.0;
+
+        var rawRatings = new Dictionary<long, double>();
+        double sumRaw = 0;
 
         foreach (var player in players)
         {
             double kpr = (double)player.Kills / totalRounds;
             double dpr = (double)player.Deaths / totalRounds;
-
-            double killRating = kpr / avgKPR * 0.45;
             double survivalRate = (double)player.RoundsSurvived / totalRounds;
-            double survivalRating = survivalRate * 0.25;
-            double multiKillRating = player.MultiKills * 0.04;
-            double tradeRating = player.Trades * 0.03;
-            double impactFactor = ((double)player.Kills + player.Assists) / (totalRounds * 2);
-            double impactRating = impactFactor * 0.25;
+            double impact = ((double)player.Kills + player.Assists) / totalRounds;
+            double adr = (double)player.TotalDamageDealt / totalRounds;
 
-            player.Rating = 0.7 + killRating + survivalRating + multiKillRating + tradeRating + impactRating;
-            player.Rating = Math.Max(0.5, Math.Min(3.0, player.Rating));
+            double killRating = kpr / avgKPR;
+            double survivalRating = survivalRate / avgSurvivalRate;
+            double impactRating = impact / avgImpact;
+
+            double coreRating = killRating * 0.40 + survivalRating * 0.30 + impactRating * 0.30;
+
+            double deathPenalty = (dpr / avgDPR - 1.0) * 0.30;
+
+            double adrAdjust = (adr / avgADR - 1.0) * 0.08;
+
+            double multiKillBonus = Math.Min(player.MultiKills * 0.004, 0.04);
+            double tradeBonus = Math.Min(player.Trades * 0.003, 0.03);
+            double mvpBonus = Math.Min(player.MVPs * 0.008, 0.04);
+            double firstKillBonus = Math.Min(player.FirstKills * 0.005, 0.03);
+            double clutchBonus = Math.Min(player.Clutches * 0.01, 0.04);
+            double smallBonuses = multiKillBonus + tradeBonus + mvpBonus + firstKillBonus + clutchBonus;
+
+            double raw = coreRating - deathPenalty + adrAdjust + smallBonuses;
+            rawRatings[player.UniqueId] = raw;
+            sumRaw += raw;
+        }
+
+        double avgRaw = sumRaw / players.Count;
+        double scaleFactor = avgRaw > 0 ? 1.0 / avgRaw : 1.0;
+
+        foreach (var player in players)
+        {
+            double rating = rawRatings[player.UniqueId] * scaleFactor;
+            player.Rating = Math.Max(0.01, Math.Min(2.5, rating));
             player.Rating = Math.Round(player.Rating, 2);
         }
     }
@@ -939,6 +1100,9 @@ public class MatchData
     public int Duration { get; set; }
     public Dictionary<string, TeamData> Teams { get; set; } = new();
     public List<RoundData> Rounds { get; set; } = new();
+    // BOT难度相关
+    public int BotDifficulty { get; set; } = 0;      // 0-5+ 原始难度值
+    public string DifficultyLevel { get; set; } = ""; // Easy/Normal/Hard/Expert/High/Pro
 }
 
 public class TeamData

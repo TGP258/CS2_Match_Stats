@@ -10,6 +10,7 @@
 <!-- toc -->
 ## 目录
 
+- [更新日志](#更新日志)
 - [简介](#简介)
 - [功能特点](#功能特点)
 - [前置要求](#前置要求)
@@ -23,6 +24,24 @@
 - [项目结构](#项目结构)
 - [Credits](#credits)
 - [许可证](#许可证)
+
+---
+
+## 更新日志
+
+### v1.2.0 (2026-06-24)
+
+**段位系统对接更新**
+
+- 优化 Rating 计算公式，采用 HLTV Rating 1.0 结构作为基础，支持前端段位计算
+- 完善 BOT 难度检测机制，为前端段位显示提供准确的难度系数
+- BOT 难度检测方式：
+  - 优先通过 `botprofile.vpk` SHA256 哈希检测 CS2-Bot-Improver 难度（Low/Medium/High）
+  - 回退到原生 `bot_difficulty` CVar（Easy/Normal/Hard/Expert）
+- 难度值范围：10（Easy/Low）~ 50（Expert/High）
+- 输出字段说明：
+  - `BotDifficulty`：数值型难度值，用于前端段位计算
+  - `DifficultyLevel`：难度等级字符串，用于前端显示（如 "Low", "Medium", "High", "Standard"）
 
 ---
 
