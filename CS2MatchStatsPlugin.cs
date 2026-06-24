@@ -243,13 +243,13 @@ public class CS2MatchStatsPlugin : BasePlugin
         var (diffName, diffLevel) = DetectBotDifficultyByVpk();
         if (diffName != "Unknown" && diffName != "Custom / Unknown")
         {
-            // BOT基础难度: Low=1, Medium=3, High=5
+            // BOT基础难度: Low=1, Medium=2, High=3
             int botBaseDiff = diffLevel switch
             {
-                "1/3" => 10,
-                "2/3" => 30,
-                "3/3" => 50,
-                _ => 10
+                "1/3" => 1,   // Low -> C+
+                "2/3" => 2,   // Medium -> B+
+                "3/3" => 3,   // High -> A+
+                _ => 1
             };
 
             _botDifficulty = botBaseDiff;
@@ -267,16 +267,16 @@ public class CS2MatchStatsPlugin : BasePlugin
                     if (val != null) _botDifficulty = Convert.ToInt32(val);
                 }
             }
-            catch { _botDifficulty = 0; }
+            catch { _botDifficulty = 1; }
 
-            // 原生难度映射
+            // 原生难度映射: Easy=1, Normal=1, Hard=2, Expert=3
             _botDifficulty = _botDifficulty switch
             {
-                0 => 10,   // Easy
-                1 => 15,   // Normal
-                2 => 30,   // Hard
-                3 => 50,   // Expert
-                _ => 10
+                0 => 1,   // Easy -> C+
+                1 => 1,   // Normal -> C+
+                2 => 2,   // Hard -> B+
+                3 => 3,   // Expert -> A+
+                _ => 1
             };
 
             _difficultyLevel = "Standard";
