@@ -38,10 +38,10 @@
 - BOT 难度检测方式：
   - 优先通过 `botprofile.vpk` SHA256 哈希检测 CS2-Bot-Improver 难度（Low/Medium/High）
   - 回退到原生 `bot_difficulty` CVar（Easy/Normal/Hard/Expert）
-- 难度值范围：10（Easy/Low）~ 50（Expert/High）
+- 难度值范围：0-3.5
 - 输出字段说明：
   - `BotDifficulty`：数值型难度值，用于前端段位计算
-  - `DifficultyLevel`：难度等级字符串，用于前端显示（如 "Low", "Medium", "High", "Standard"）
+  - `DifficultyLevel`：难度等级字符串，用于前端显示（如 "Low", "Medium", "High"）
 
 ---
 
